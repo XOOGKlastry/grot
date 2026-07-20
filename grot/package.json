@@ -1,0 +1,12 @@
+{
+  "name": "mapa-sprzedazy",
+  "version": "2.0.0",
+  "description": "Mapa terytoriow sprzedazy z optymalizacja tras i nawigacja w Google Maps",
+  "private": true,
+  "scripts": {
+    "test": "node tools/test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}
