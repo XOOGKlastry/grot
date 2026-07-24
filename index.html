@@ -391,6 +391,41 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
 .pop-www:hover{background:var(--paper-2);color:var(--ink)}
 .pop-www.szukaj{border-style:dashed;color:var(--ink-3)}
 
+/* --- twarz handlowca w dymku i legendzie --- */
+.pop-s{display:flex;align-items:center;gap:7px}
+.pop-av{width:28px;height:28px;flex:0 0 28px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--kolor);box-shadow:0 0 0 1px rgba(251,245,221,.85)}
+.chip-av{width:22px;height:22px;flex:0 0 22px;border-radius:50%;overflow:hidden;display:block;
+  border:2px solid var(--kolor);box-shadow:0 0 0 1px rgba(251,245,221,.7);background:var(--paper)}
+.chip-av img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* --- twarze handlowców na mapie --- */
+#twarzeBtn{
+  position:absolute;right:10px;top:148px;z-index:600;width:var(--tap);height:var(--tap);
+  border-radius:13px;background:var(--paper);border:1px solid var(--line);
+  box-shadow:var(--sh-2);cursor:pointer;display:grid;place-items:center;color:var(--ink-2);
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+#twarzeBtn:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+#twarzeBtn.on{color:var(--paper);background:var(--ink);border-color:var(--ink)}
+.twarz-ic{overflow:visible}
+.twarz{
+  position:relative;width:52px;height:52px;border-radius:50%;
+  border:3px solid var(--kolor);background:var(--paper);cursor:pointer;
+  box-shadow:0 3px 10px rgba(58,62,44,.38),0 0 0 2px rgba(251,245,221,.92);
+  transition:transform .14s ease,opacity .18s ease,filter .18s ease;
+}
+.twarz img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;pointer-events:none}
+.twarz-lab{
+  position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);white-space:nowrap;
+  font-size:11px;font-weight:800;color:var(--ink);background:rgba(251,245,221,.94);
+  border:1px solid var(--line);border-radius:999px;padding:1px 7px;box-shadow:var(--sh-1);pointer-events:none;
+}
+.twarz:hover{transform:scale(1.08)}
+.twarz-dim .twarz{opacity:.34;filter:grayscale(.55)}
+.twarz-dim .twarz-lab{opacity:.42}
+.twarz-on .twarz{transform:scale(1.1);box-shadow:0 4px 15px rgba(58,62,44,.45),0 0 0 3px var(--kolor)}
+
 /* =================== większe ekrany =================== */
 @media (min-width:880px){
   #app{flex-direction:row}
@@ -405,6 +440,7 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
   #body{padding:14px}
   #legend{max-width:220px;top:12px;left:12px}
   #baseBtn,#basePanel{top:12px;right:64px}
+  #twarzeBtn{top:64px;right:64px}
   #zoomHint{bottom:auto;top:16px}
   .base{flex:0 0 104px}
   .base img{width:104px;height:66px}
@@ -426,6 +462,12 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
     <button id="baseBtn" aria-label="Mapa bazowa" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polygon points="12 2 22 8 12 14 2 8 12 2"/><polyline points="2 14 12 20 22 14"/>
+      </svg>
+    </button>
+
+    <button id="twarzeBtn" class="on" aria-label="Twarze handlowców" aria-pressed="true" title="Ukryj twarze handlowców">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"/>
       </svg>
     </button>
 
@@ -598,6 +640,7 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="data/powiaty.js"></script>
+<script src="data/wojewodztwa.js"></script>
 <script src="data/strony.js"></script>
 <script src="app.js"></script>
 </body>

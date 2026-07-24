@@ -67,7 +67,18 @@ function leafletStub(win) {
     tileLayer: () => ({ addTo: function () { dodane.add(this); return this; }, on: noop, remove: noop }),
     geoJSON: warstwa,
     polyline: () => ({ addTo: noop, remove: noop }),
-    marker: () => ({ addTo: noop, bindPopup: noop, remove: noop }),
+    marker: () => ({ addTo: noop, bindPopup: noop, remove: noop, on: noop, getElement: () => null, _s: null }),
+    layerGroup: () => {
+      const kids = [];
+      const g = {
+        addLayer: function (l) { kids.push(l); return this; },
+        removeLayer: function (l) { const i = kids.indexOf(l); if (i >= 0) kids.splice(i, 1); return this; },
+        clearLayers: function () { kids.length = 0; return this; },
+        eachLayer: function (fn) { kids.forEach(fn); return this; },
+        addTo: function () { dodane.add(this); return this; }, remove: noop, on: noop
+      };
+      return g;
+    },
     divIcon: o => o, svg: () => ({}),
     latLng: (a, b) => ({ lat: a, lng: b }),
     latLngBounds: () => ({ pad: () => ({}) })

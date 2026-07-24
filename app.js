@@ -66,6 +66,7 @@ var OSRM = 'https://router.project-osrm.org';
 var NOMINATIM = 'https://nominatim.openstreetmap.org';
 var GM_WAYPOINTS = 8;            // 8 pośrednich + start + meta = 10, limit odnośnika Google
 var ZOOM_GMINY = 8;              // niżej gminy są nieczytelne i tylko mulą mapę
+var ZOOM_TWARZE_MAX = 10;        // wyżej twarze schodzą z drogi — miejsce na pracę w gminach
 var MAX_OSRM = 95;               // publiczny serwer przyjmuje 100 punktów
 var KRYCIE = 0.55;
 var KRYCIE_ZDJECIE = 0.26;       // na zdjęciu lotniczym wypełnienie musi być lżejsze
@@ -75,6 +76,7 @@ var S = {
   mode: 'loop',
   podklad: 'mapa',
   filter: 'all',
+  twarze: true,                  // twarze handlowców na mapie (można schować)
   edycja: null,                  // id przystanku w trybie edycji adresu
   wynik: null
 };
@@ -114,6 +116,19 @@ function barwa(s) {
   }
   return BARWY[i % BARWY.length];
 }
+
+/* ====================== twarze handlowców ====================== */
+
+/* Klucz to nazwa handlowca z danych, wartość to plik w assets/twarze/.
+   Nazwy plików bez polskich znaków, żeby uniknąć kłopotów z kodowaniem. */
+var TWARZE = {
+  'Aleksander': 'assets/twarze/aleksander.jpg',
+  'Dominik':    'assets/twarze/dominik.jpg',
+  'Jakub':      'assets/twarze/jakub.jpg',
+  'Michał':     'assets/twarze/michal.jpg',
+  'WMKK':       'assets/twarze/wmkk.jpg'
+};
+function twarzUrl(s) { return (s && TWARZE[s]) || null; }
 
 /* ====================== dane ====================== */
 
@@ -233,9 +248,10 @@ function podkladPoId(id) {
 
 /* ====================== mapa ====================== */
 
-var map, warstwaPow, warstwaGm, warstwaWoj, warstwaKafelki;
+var map, warstwaPow, warstwaGm, warstwaWoj, warstwaWojCien, warstwaKafelki;
+var warstwaTwarze = null, markeryTwarzy = [], pozycjeTwarzy = null;
 var liniaTrasy = null, markeryStopow = [], markeryDrog = [];
-var rendererTrasy, rendererStopow, bledyKafelkow = 0;
+var rendererTrasy, rendererStopow, rendererWoj, bledyKafelkow = 0;
 
 function initMapa() {
   map = L.map('map', {
@@ -246,21 +262,34 @@ function initMapa() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
+  map.createPane('wojPane');   map.getPane('wojPane').style.zIndex = 500;   // granice województw nad wypełnieniem, pod trasą
+  map.createPane('twarzePane');map.getPane('twarzePane').style.zIndex = 615; // twarze nad granicami, pod przystankami trasy
   map.createPane('routePane'); map.getPane('routePane').style.zIndex = 620;
   map.createPane('roadsPane'); map.getPane('roadsPane').style.zIndex = 650;  // tarczki nad linią trasy
   map.createPane('stopsPane'); map.getPane('stopsPane').style.zIndex = 660;
   rendererTrasy = L.svg({ pane: 'routePane' });
   rendererStopow = L.svg({ pane: 'stopsPane' });
+  rendererWoj = L.svg({ pane: 'wojPane' });                                 // 16 obszarów, SVG daje ostre, ciągłe linie
 
   ustawPodklad(S.podklad, true);
 
   warstwaPow = L.geoJSON(ZBIORY.powiaty.geo, { style: stylObszaru, onEachFeature: podepnijKlik });
   warstwaGm = L.geoJSON(null, { style: stylObszaru, onEachFeature: podepnijKlik });
+
+  // Granice województw rysujemy dwiema liniami: jasna otoczka pod spodem daje
+  // kontrast na każdym podkładzie (także na zdjęciu lotniczym), ciemna linia na
+  // wierzchu to sama granica. Dzięki temu struktura kraju czyta się od pierwszego
+  // rzutu oka i nigdy nie zlewa się z cienkimi liniami powiatów i gmin.
+  warstwaWojCien = L.geoJSON(null, {
+    pane: 'wojPane', renderer: rendererWoj, interactive: false,
+    style: { fill: false, color: '#FBF5DD', weight: 5, opacity: 0.85, lineJoin: 'round', lineCap: 'round' }
+  });
   warstwaWoj = L.geoJSON(null, {
-    style: { fill: false, color: '#3A3E2C', weight: 1.6, opacity: 0.5, dashArray: '4,5' },
-    interactive: false
+    pane: 'wojPane', renderer: rendererWoj, interactive: false,
+    style: { fill: false, color: '#2E3220', weight: 2.2, opacity: 0.95, lineJoin: 'round', lineCap: 'round' }
   });
   warstwaPow.addTo(map);
+  zbudujWojewodztwa();       // WOJ_DB ładuje się od razu (data/wojewodztwa.js), więc granice są od startu
 
   map.on('moveend zoomend', odswiezWarstwy);
 
@@ -297,6 +326,7 @@ function ustawPodklad(id, cicho) {
 
   var el = map.getContainer();
   if (el && el.classList) el.classList.toggle('plain', !p.cieply);
+  stylujWojewodztwa();
 
   $$('#bases .base').forEach(function (b) {
     b.classList.toggle('on', b.getAttribute('data-base') === p.id);
@@ -376,9 +406,11 @@ function pokazPopup(j, layer) {
   var jest = S.stops.some(function (s) { return s.kod === j.kod; });
   var w = stronaJednostki(j);
   var podpis = j.typ === 'gmina' ? (j.powiat || j.woj) : j.woj;
+  var av = twarzUrl(j.sprzedawca);
+  var avHtml = av ? '<img class="pop-av" src="' + esc(av) + '" alt="" style="--kolor:' + barwa(j.sprzedawca) + '">' : '';
   var html =
     '<div class="pop-t">' + esc(pelnaNazwa(j)) + '</div>' +
-    '<div class="pop-s" style="color:' + barwa(j.sprzedawca) + '">' + esc(j.sprzedawca) + ' · ' + esc(podpis) + '</div>' +
+    '<div class="pop-s" style="color:' + barwa(j.sprzedawca) + '">' + avHtml + '<span>' + esc(j.sprzedawca) + ' · ' + esc(podpis) + '</span></div>' +
     '<div class="pop-a">' + esc(j.urzad) + '<br>' + esc(j.miasto) + '</div>' +
     '<div class="pop-btns">' +
       (jest ? '<span class="tag">już na trasie</span>'
@@ -392,26 +424,126 @@ function pokazPopup(j, layer) {
 /* Powiaty służą już tylko za widok z lotu ptaka. Od przybliżenia 8 mapa
    przechodzi na gminy i rysuje tylko te, które mieszczą się w kadrze —
    2477 obszarów naraz dławi telefon. */
+/* Granice województw są zawsze na mapie (warstwa dodana raz, w wojPane nad
+   wypełnieniem). Tu przełączamy tylko powiaty <-> gminy i odświeżamy twarze. */
+function zbudujWojewodztwa() {
+  if (!window.WOJ_DB || warstwaWoj._wgotowe) return;
+  warstwaWojCien.clearLayers(); warstwaWojCien.addData(window.WOJ_DB);
+  warstwaWoj.clearLayers();     warstwaWoj.addData(window.WOJ_DB);
+  warstwaWojCien.addTo(map);
+  warstwaWoj.addTo(map);
+  warstwaWoj._wgotowe = true;
+  stylujWojewodztwa();
+}
+
+/* Na zdjęciu lotniczym otoczka schodzi na biel i cieńczeje, żeby nie dominowała
+   nad terenem; na własnej mapie zostaje ciepła i mocna. */
+function stylujWojewodztwa() {
+  if (!warstwaWoj || !warstwaWoj._wgotowe) return;
+  var zdjecie = S.podklad === 'satelita';
+  warstwaWojCien.setStyle({
+    color: zdjecie ? '#FFFFFF' : '#FBF5DD',
+    weight: zdjecie ? 4 : 5,
+    opacity: zdjecie ? 0.7 : 0.85
+  });
+  warstwaWoj.setStyle({
+    color: zdjecie ? '#12140C' : '#2E3220',
+    weight: zdjecie ? 1.8 : 2.2,
+    opacity: zdjecie ? 0.9 : 0.95
+  });
+}
+
 function odswiezWarstwy() {
   var chceGminy = map.getZoom() >= ZOOM_GMINY;
 
   if (chceGminy && ZBIORY.gminy.gotowy) {
     if (map.hasLayer(warstwaPow)) map.removeLayer(warstwaPow);
-    if (!map.hasLayer(warstwaWoj)) {
-      warstwaWoj.clearLayers();
-      if (window.WOJ_DB) warstwaWoj.addData(window.WOJ_DB);
-      warstwaWoj.addTo(map);
-    }
     rysujGminyWKadrze();
     schowajPodpowiedz();
   } else {
     if (map.hasLayer(warstwaGm)) map.removeLayer(warstwaGm);
-    if (map.hasLayer(warstwaWoj)) map.removeLayer(warstwaWoj);
     if (!map.hasLayer(warstwaPow)) warstwaPow.addTo(map);
     if (chceGminy && !ZBIORY.gminy.gotowy) pokazPodpowiedz('Wczytuję gminy…', 2500);
     else schowajPodpowiedz();
   }
+  odswiezTwarze();
   rysujLegende();
+}
+
+/* ====================== twarze na mapie ====================== */
+
+/* Jedna twarz na handlowca, w medoidzie jego terytorium: bierzemy punkt etykiety
+   powiatu najbliższy średniej wszystkich jego powiatów, więc twarz zawsze siedzi
+   wewnątrz obszaru danej osoby, a nie w morzu ani u sąsiada. */
+function policzPozycjeTwarzy() {
+  var wg = {};
+  ZBIORY.powiaty.idx.forEach(function (p) {
+    if (!twarzUrl(p.sprzedawca)) return;
+    (wg[p.sprzedawca] = wg[p.sprzedawca] || []).push(p);
+  });
+  pozycjeTwarzy = Object.keys(wg).map(function (s) {
+    var pts = wg[s], alat = 0, alng = 0;
+    pts.forEach(function (p) { alat += p.lat; alng += p.lng; });
+    alat /= pts.length; alng /= pts.length;
+    var best = pts[0], bd = Infinity;
+    pts.forEach(function (p) {
+      var d = (p.lat - alat) * (p.lat - alat) + (p.lng - alng) * (p.lng - alng);
+      if (d < bd) { bd = d; best = p; }
+    });
+    return { s: s, lat: best.lat, lng: best.lng, ile: pts.length };
+  });
+}
+
+function zbudujTwarze() {
+  if (!pozycjeTwarzy) policzPozycjeTwarzy();
+  if (warstwaTwarze) { map.removeLayer(warstwaTwarze); }
+  warstwaTwarze = L.layerGroup();
+  markeryTwarzy = [];
+  pozycjeTwarzy.forEach(function (o) {
+    var html =
+      '<div class="twarz" style="--kolor:' + barwa(o.s) + '">' +
+        '<img src="' + esc(twarzUrl(o.s)) + '" alt="' + esc(o.s) + '" loading="lazy" draggable="false">' +
+        '<span class="twarz-lab">' + esc(o.s) + '</span>' +
+      '</div>';
+    var m = L.marker([o.lat, o.lng], {
+      pane: 'twarzePane',
+      icon: L.divIcon({ className: 'twarz-ic', html: html, iconSize: [52, 52], iconAnchor: [26, 26] }),
+      keyboard: false, riseOnHover: true, title: o.s + ' · ' + o.ile + ' powiatów'
+    });
+    m._s = o.s;
+    m.on('click', function () {
+      S.filter = (S.filter === o.s) ? 'all' : o.s;
+      odswiezStyle(); rysujLegende();
+    });
+    warstwaTwarze.addLayer(m);
+    markeryTwarzy.push(m);
+  });
+}
+
+/* „Odpowiedni zoom": twarze widać w widoku przeglądowym (kraj i powiaty), a przy
+   zejściu w gminy schodzą z drogi. Przy aktywnym filtrze przygaszamy pozostałe. */
+function odswiezTwarze() {
+  if (!map) return;
+  if (!warstwaTwarze) zbudujTwarze();
+  var pokaz = S.twarze && map.getZoom() <= ZOOM_TWARZE_MAX;
+  if (!pokaz) {
+    if (map.hasLayer(warstwaTwarze)) map.removeLayer(warstwaTwarze);
+    return;
+  }
+  if (!map.hasLayer(warstwaTwarze)) warstwaTwarze.addTo(map);
+  markeryTwarzy.forEach(function (m) {
+    var el = m.getElement(); if (!el) return;
+    var wybrany = S.filter === 'all' || S.filter === m._s;
+    el.classList.toggle('twarz-dim', !wybrany);
+    el.classList.toggle('twarz-on', S.filter === m._s);
+  });
+}
+
+function aktualizujTwarzeBtn() {
+  var b = $('#twarzeBtn'); if (!b) return;
+  b.classList.toggle('on', !!S.twarze);
+  b.setAttribute('aria-pressed', S.twarze ? 'true' : 'false');
+  b.title = S.twarze ? 'Ukryj twarze handlowców' : 'Pokaż twarze handlowców';
 }
 
 function rysujGminyWKadrze() {
@@ -451,6 +583,7 @@ function dosun(latlng) {
 function odswiezStyle() {
   warstwaPow.setStyle(stylObszaru);
   if (map.hasLayer(warstwaGm)) warstwaGm.setStyle(stylObszaru);
+  odswiezTwarze();
 }
 
 /* ====================== legenda ====================== */
@@ -465,8 +598,10 @@ function rysujLegende() {
   function chip(klucz, etykieta, kolor, ile) {
     var d = document.createElement('div');
     d.className = 'chip' + (S.filter === klucz ? ' on' : '');
-    d.innerHTML = '<div class="dot" style="background:' + kolor + '"></div>' +
-                  '<div>' + esc(etykieta) + '</div><div class="c">' + ile + '</div>';
+    var ikona = twarzUrl(etykieta)
+      ? '<span class="chip-av" style="--kolor:' + kolor + '"><img src="' + esc(twarzUrl(etykieta)) + '" alt="" loading="lazy"></span>'
+      : '<span class="dot" style="background:' + kolor + '"></span>';
+    d.innerHTML = ikona + '<div>' + esc(etykieta) + '</div><div class="c">' + ile + '</div>';
     d.onclick = function () {
       S.filter = (S.filter === klucz && klucz !== 'all') ? 'all' : klucz;
       box._f = null;
@@ -1274,7 +1409,7 @@ function ustawTryb(tryb, cicho) {
 /* ====================== ustawienia ====================== */
 
 function zapiszUstawienia() {
-  store.set(KEY_PREFS, JSON.stringify({ mode: S.mode, podklad: S.podklad }));
+  store.set(KEY_PREFS, JSON.stringify({ mode: S.mode, podklad: S.podklad, twarze: S.twarze }));
 }
 
 function wczytajUstawienia() {
@@ -1282,6 +1417,7 @@ function wczytajUstawienia() {
     var p = JSON.parse(store.get(KEY_PREFS) || '{}');
     if (p.mode) S.mode = p.mode;
     if (p.podklad) S.podklad = p.podklad;
+    if (typeof p.twarze === 'boolean') S.twarze = p.twarze;
   } catch (e) {}
 }
 
@@ -1295,6 +1431,16 @@ function podlacz() {
   $$('#modeSeg .mode').forEach(function (b) {
     b.onclick = function () { ustawTryb(b.getAttribute('data-mode')); };
   });
+
+  $('#twarzeBtn').onclick = function () {
+    S.twarze = !S.twarze;
+    aktualizujTwarzeBtn();
+    odswiezTwarze();
+    zapiszUstawienia();
+    if (S.twarze && map.getZoom() > ZOOM_TWARZE_MAX) {
+      pokazPodpowiedz('Twarze widać w widoku przeglądowym — oddal mapę.', 3000);
+    }
+  };
 
   $('#baseBtn').onclick = function () { pokazWyborPodkladu(true); };
   document.addEventListener('click', function (e) {
@@ -1421,6 +1567,8 @@ function start() {
   rysujLegende();
   podlacz();
   ustawTryb(S.mode, true);
+  aktualizujTwarzeBtn();
+  odswiezTwarze();
 
   $('#storeHint').textContent = store.trwaly
     ? 'Trasy zostają w tej przeglądarce.'
@@ -1433,6 +1581,7 @@ function start() {
   // zanim ktokolwiek zdąży wpisać drugą literę.
   wczytajGminy().then(function () {
     if ($('#q').value) szukaj($('#q').value);
+    zbudujWojewodztwa();   // gdyby data/wojewodztwa.js nie wszedł, WOJ_DB jest też w gminy.js
     odswiezWarstwy();
   }).catch(function (e) {
     console.warn(e);
