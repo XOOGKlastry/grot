@@ -106,8 +106,15 @@ function zapiszWgKodu(z) {
 
 var BARWY = ['#6E7A4B', '#8C5A3C', '#4E6B7A', '#6B4A63', '#B08A3E', '#A15544', '#4A4E57', '#7E8C79'];
 
+/* Stale kolory wybranych handlowcow. Reszta dostaje barwe wg kolejnosci w SELLERS. */
+var BARWY_STALE = {
+  'Aleksander': '#4E6B7A',  /* niebieski */
+  'Jakub':      '#6E7A4B'   /* zielony */
+};
+
 function barwa(s) {
   if (!s || s === 'nikt') return '#C9C3A8';
+  if (BARWY_STALE[s]) return BARWY_STALE[s];
   var i = SELLERS.indexOf(s);
   if (i < 0) {
     var h = 0;
