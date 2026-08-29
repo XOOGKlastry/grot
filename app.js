@@ -219,10 +219,10 @@ function ortoUrl(z, y, x) {
 
 var PODKLADY = [
   {
-    id: 'mapa', nazwa: 'Mapa', zrodlo: 'CARTO Voyager', cieply: true,
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    opcje: { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap, &copy; CARTO' },
-    podglad: 'https://a.basemaps.cartocdn.com/rastertiles/voyager/' + PODGLAD_Z + '/' + PODGLAD_X + '/' + PODGLAD_Y + '.png'
+    id: 'mapa', nazwa: 'Mapa', zrodlo: 'OSM Humanitarian', cieply: true,
+    url: 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    opcje: { subdomains: 'abc', maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · styl: Humanitarian OpenStreetMap Team' },
+    podglad: 'https://a.tile.openstreetmap.fr/hot/' + PODGLAD_Z + '/' + PODGLAD_X + '/' + PODGLAD_Y + '.png'
   },
   {
     id: 'satelita', nazwa: 'Satelita', zrodlo: 'Geoportal GUGiK',
