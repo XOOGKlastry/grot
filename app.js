@@ -659,7 +659,7 @@ function dodajJednostke(j) {
     zapytanie: zapytanie, krotko: j.miasto,
     strona: w.url, stronaEtykieta: w.etykieta
   });
-  if (ok) dosun(L.latLng(j.uLat, j.uLng));
+  if (ok) { dosun(L.latLng(j.uLat, j.uLng)); pokazStrone('pgRoute'); }
   return ok;
 }
 
@@ -1265,7 +1265,7 @@ function szukaj(q) {
       if (dodajJednostke(j)) {
         el.querySelector('.kind').textContent = 'dodano';
       }
-      map.setView([j.uLat, j.uLng], Math.max(map.getZoom(), j.typ === 'gmina' ? 10 : 9));
+      map.setView([j.uLat, j.uLng], Math.max(map.getZoom(), j.typ === 'gmina' ? 10 : 9), { animate: false });
     };
   });
 }
@@ -1317,7 +1317,7 @@ function renderZapisane() {
 function dopasujWidok() {
   if (!S.stops.length) return;
   var b = L.latLngBounds(S.stops.map(function (s) { return [s.lat, s.lng]; }));
-  map.fitBounds(b.pad(0.15));
+  map.fitBounds(b.pad(0.15), { animate: false, padding: [32, 70], maxZoom: 13 });
 }
 
 /* ====================== import ====================== */
@@ -1401,6 +1401,7 @@ function pokazStrone(id) {
   $$('.page').forEach(function (p) { p.classList.toggle('on', p.id === id); });
   $$('.tab').forEach(function (t) { t.classList.toggle('on', t.getAttribute('data-page') === id); });
   if (id === 'pgSaved') renderZapisane();
+  document.dispatchEvent(new CustomEvent('grot:page', { detail: { id: id } }));
 }
 
 var OPISY_TRYBU = {
@@ -1563,6 +1564,8 @@ function podlacz() {
 
   $('#handle').onclick = function () {
     $('#panel').classList.toggle('min');
+    document.dispatchEvent(new CustomEvent('grot:panel'));
+    if ($('#panel').classList.contains('min')) dopasujWidok();
     setTimeout(function () { map.invalidateSize(); }, 220);
   };
 
