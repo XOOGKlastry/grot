@@ -1,0 +1,20 @@
+# Mobile verification
+
+Run `npm ci`, `npx playwright install chromium`, start a static server on port
+8765 from the repository root, then run `npm run test:mobile`. Set TEST_URL to
+test a deployed build. EDGE_PATH optionally selects an installed Edge executable.
+
+The smoke test covers 360/390 px portrait, landscape and desktop, search,
+tabs, filter controls, installation help, overflow, service-worker activation
+and icon availability. A screenshot is saved in the parent directory.
+Actual OS installation and keyboard behavior still require a physical phone.
+
+PWA installation requires HTTPS (localhost is allowed for tests). Offline routing
+and map tiles are not provided. The service worker only caches same-origin assets
+and tries the network first. Bump its cache name when changing the cached shell.
+
+The existing `npm test` currently fails in the office-link fixtures; the identical
+failure was reproduced on base commit 7c2c4d7 before mobile changes.
+
+Rollback: revert the mobile commit and redeploy GitHub Pages; preserve or replace
+sw.js with a cleanup worker if retiring the PWA, so existing installations update.
