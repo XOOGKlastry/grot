@@ -298,7 +298,7 @@ function initMapa() {
   warstwaPow.addTo(map);
   zbudujWojewodztwa();       // WOJ_DB ładuje się od razu (data/wojewodztwa.js), więc granice są od startu
 
-  map.on('moveend zoomend', odswiezWarstwy);
+  map.on('moveend', odswiezWarstwy);
 
   map.on('popupopen', function (e) {
     var el = e.popup.getElement();
@@ -560,9 +560,14 @@ function rysujGminyWKadrze() {
     var r = f._b;
     return r[0] <= e && r[2] >= w && r[1] <= n && r[3] >= s;
   });
-  warstwaGm.clearLayers();
-  warstwaGm.addData({ type: 'FeatureCollection', features: widoczne });
-  if (!map.hasLayer(warstwaGm)) warstwaGm.addTo(map);
+  // Preserve paths and event handlers when panning inside the same feature set.
+  if (!rysujGminyWKadrze._features || widoczne.length !== rysujGminyWKadrze._features.length ||
+      widoczne.some(function (f, i) { return f !== rysujGminyWKadrze._features[i]; })) {
+    warstwaGm.clearLayers();
+    warstwaGm.addData({ type: 'FeatureCollection', features: widoczne });
+    rysujGminyWKadrze._features = widoczne;
+  }
+  if (!map.hasLayer(warstwaGm)) { warstwaGm.setStyle(stylObszaru); warstwaGm.addTo(map); }
 }
 
 function warstwaAktywna() {
@@ -603,7 +608,9 @@ function rysujLegende() {
   box.innerHTML = '';
 
   function chip(klucz, etykieta, kolor, ile) {
-    var d = document.createElement('div');
+    var d = document.createElement('button');
+    d.type = 'button';
+    d.setAttribute('aria-pressed', String(S.filter === klucz));
     d.className = 'chip' + (S.filter === klucz ? ' on' : '');
     var ikona = twarzUrl(etykieta)
       ? '<span class="chip-av" style="--kolor:' + kolor + '"><img src="' + esc(twarzUrl(etykieta)) + '" alt="" loading="lazy"></span>'
@@ -1560,6 +1567,9 @@ function podlacz() {
   };
 
   window.addEventListener('resize', function () { map.invalidateSize(); });
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () { map.invalidateSize({ debounceMoveend: true }); }).observe($('#mapwrap'));
+  }
 
   wlaczPrzeciaganie($('#stops'));
 }

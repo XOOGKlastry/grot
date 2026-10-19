@@ -7,6 +7,10 @@
 <meta name="description" content="Wyszukiwarka gmin i powiatów z układaniem trasy dnia i nawigacją w Google Maps.">
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#FBF5DD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/app-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="mobile.css?v=20261019">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@700&display=swap&text=ADKS0123456789">
@@ -458,6 +462,8 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
   <main id="mapwrap">
     <div id="map"></div>
     <div id="legend"></div>
+    <button id="filterBtn" class="btn" aria-expanded="false" aria-controls="legend">☷ Handlowcy</button>
+    <button id="mapOnlyBtn" class="btn" aria-controls="panel">Pełna mapa ↗</button>
 
     <button id="baseBtn" aria-label="Mapa bazowa" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -491,6 +497,7 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
         <h1>GROT</h1>
       </div>
       <button id="handle" title="Zwiń panel" aria-label="Zwiń panel">▾</button>
+      <button id="installBtn" class="btn" title="Pobierz aplikację na telefon">↓ Pobierz</button>
     </div>
 
     <nav id="tabs" role="tablist">
@@ -643,5 +650,6 @@ textarea{resize:vertical;min-height:100px;line-height:1.5}
 <script src="data/wojewodztwa.js"></script>
 <script src="data/strony.js"></script>
 <script src="app.js"></script>
+<script src="mobile.js?v=20261019"></script>
 </body>
 </html>
