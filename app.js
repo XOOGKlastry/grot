@@ -560,13 +560,13 @@ function rysujGminyWKadrze() {
     var r = f._b;
     return r[0] <= e && r[2] >= w && r[1] <= n && r[3] >= s;
   });
-  // Preserve paths and event handlers when panning inside the same feature set.
-  if (!rysujGminyWKadrze._features || widoczne.length !== rysujGminyWKadrze._features.length ||
-      widoczne.some(function (f, i) { return f !== rysujGminyWKadrze._features[i]; })) {
-    warstwaGm.clearLayers();
-    warstwaGm.addData({ type: 'FeatureCollection', features: widoczne });
-    rysujGminyWKadrze._features = widoczne;
-  }
+  // Retain existing feature layers: popup auto-pan must not destroy its owner.
+  var wanted = new Set(widoczne), existing = new Set();
+  warstwaGm.eachLayer(function (layer) {
+    if (wanted.has(layer.feature) || layer.isPopupOpen()) existing.add(layer.feature);
+    else warstwaGm.removeLayer(layer);
+  });
+  warstwaGm.addData({ type: 'FeatureCollection', features: widoczne.filter(function (f) { return !existing.has(f); }) });
   if (!map.hasLayer(warstwaGm)) { warstwaGm.setStyle(stylObszaru); warstwaGm.addTo(map); }
 }
 
@@ -820,8 +820,16 @@ function ustawKolejnosc(pts, cost) {
   return f;
 }
 
+var liczenie = false;
+function kluczTrasy() {
+  return JSON.stringify([S.mode, S.stops.map(function (s) { return [s.id, s.lat, s.lng, s.prio]; })]);
+}
 function optymalizuj() {
-  if (S.stops.length < 2) return;
+  if (S.stops.length < 2 || liczenie) return;
+  liczenie = true;
+  S.wynik = null;
+  odswiezGoogle();
+  var aktualnyKlucz = kluczTrasy();
   var btn = $('#btnOpt'), etykieta = btn.querySelector('.act-txt');
   btn.disabled = true; etykieta.textContent = 'Liczę…';
 
@@ -830,16 +838,19 @@ function optymalizuj() {
   var wstep = zaDuzo ? Promise.resolve(null) : osrmTable(pts);
 
   wstep.then(function (cost) {
+    if (aktualnyKlucz !== kluczTrasy()) return;
     var powod = null;
     if (!cost) { cost = macierzHav(pts); powod = zaDuzo ? 'limit' : 'siec'; }
 
     var kolejnosc = ustawKolejnosc(pts, cost);
     S.stops = kolejnosc.map(function (i) { return pts[i]; });
+    aktualnyKlucz = kluczTrasy();
 
     var trasa = S.stops.slice();
     if (S.mode === 'loop') trasa.push(S.stops[0]);
 
     return (zaDuzo ? Promise.resolve(null) : osrmRoute(trasa)).then(function (r) {
+      if (aktualnyKlucz !== kluczTrasy()) return;
       if (r) {
         S.wynik = { dystans: r.dystans, czas: r.czas, linia: r.linia,
                     przyblizone: false, legs: r.legs, drogi: drogiZTrasy(r.legs) };
@@ -861,6 +872,8 @@ function optymalizuj() {
     console.error(e);
     S.wynik = null; render();
   }).then(function () {
+    liczenie = false;
+    render();
     btn.disabled = S.stops.length < 2;
     etykieta.textContent = 'Wyznacz kolejność';
   });
@@ -999,15 +1012,18 @@ function urlGoogle(kawalek) {
 function odswiezGoogle() {
   var a = $('#btnGo'), sub = $('#goSub'), box = $('#segs');
 
-  if (S.stops.length < 2) {
+  if (S.stops.length < 2 || !S.wynik || liczenie) {
     a.className = 'go off'; a.removeAttribute('href');
-    sub.textContent = 'dodaj co najmniej dwa przystanki';
+    a.setAttribute('aria-disabled', 'true');
+    a.tabIndex = -1;
+    sub.textContent = S.stops.length < 2 ? 'Dodaj co najmniej dwa przystanki' : (liczenie ? 'Trwa wyznaczanie kolejności…' : 'Najpierw wyznacz kolejność');
     box.innerHTML = '';
     return;
   }
 
   var sg = etapy(S.stops);
   a.className = 'go';
+  a.setAttribute('aria-disabled', 'false'); a.tabIndex = 0;
   a.href = urlGoogle(sg[0]);
   sub.textContent = S.stops.length + ' ' + odm(S.stops.length, 'przystanek', 'przystanki', 'przystanków') +
                     (sg.length > 1 ? ' · etap 1 z ' + sg.length : '');
@@ -1041,7 +1057,7 @@ function render() {
   $('#cntStops').textContent = S.stops.length;
   $('#cntStops2').textContent = S.stops.length;
   $('#emptyStops').style.display = S.stops.length ? 'none' : 'block';
-  $('#btnOpt').disabled = S.stops.length < 2;
+  $('#btnOpt').disabled = S.stops.length < 2 || liczenie;
   $('#btnClear').disabled = !S.stops.length;
   $('#dragHint').style.display = S.stops.length > 1 ? 'block' : 'none';
 
