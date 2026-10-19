@@ -1,6 +1,6 @@
 /* Network first: updates never leave the application pinned to an old release.
    Only cache our shell. Third-party map tiles and routing requests are excluded. */
-var CACHE = 'grot-shell-20261019';
+var CACHE = 'grot-shell-20261019b';
 self.addEventListener('install', function () { self.skipWaiting(); });
 self.addEventListener('activate', function (event) {
   event.waitUntil(caches.keys().then(function (keys) {

@@ -9,6 +9,16 @@ tabs, filter controls, installation help, overflow, service-worker activation
 and icon availability. A screenshot is saved in the parent directory.
 Actual OS installation and keyboard behavior still require a physical phone.
 
+`npm run test:route-mobile` tests an actual map popup: add a stop, open the
+fullscreen route automatically, add a second stop, check navigation, preview
+all stops on the map and return without losing the route. It also checks that
+the preview extent contains the complete route's bounding box.
+
+Brand: original VESNA `g#logo` vector extracted from https://www.vesna.legal/
+on 2026-10-19. Geometry is unchanged; background cutouts match the application
+tile. Run `node tools/brand-icons.cjs` to regenerate the PNG installation icons.
+The install banner identifies a web application, not a Google Play listing.
+
 PWA installation requires HTTPS (localhost is allowed for tests). Offline routing
 and map tiles are not provided. The service worker only caches same-origin assets
 and tries the network first. Bump its cache name when changing the cached shell.

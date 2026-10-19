@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "test": "node tools/test.js",
-    "test:mobile": "node tools/mobile-smoke.cjs"
+    "test:mobile": "node tools/mobile-smoke.cjs",
+    "test:route-mobile": "node tools/route-mobile.cjs"
   },
   "devDependencies": {
     "jsdom": "^24.0.0",
