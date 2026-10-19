@@ -19,6 +19,13 @@ on 2026-10-19. Geometry is unchanged; background cutouts match the application
 tile. Run `node tools/brand-icons.cjs` to regenerate the PNG installation icons.
 The install banner identifies a web application, not a Google Play listing.
 
+Route-flow checks now cover navigation locked until optimization, invalidation
+after mode changes, discarded stale calculations, a drag-to-map gesture,
+popup retention during map panning, platform installation instructions and a
+mocked native install prompt. OS installation itself requires device testing.
+Apple's iPhone installation requires the Share → Add to Home Screen flow;
+the page cannot add an icon without system/user confirmation.
+
 PWA installation requires HTTPS (localhost is allowed for tests). Offline routing
 and map tiles are not provided. The service worker only caches same-origin assets
 and tries the network first. Bump its cache name when changing the cached shell.

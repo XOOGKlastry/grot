@@ -219,9 +219,7 @@ function leafletStub(win) {
   ok(doc.getElementById('cntStops').textContent === '5', 'ta sama jednostka nie dubluje sie');
 
   const href = doc.getElementById('btnGo').getAttribute('href');
-  ok(/^https:\/\/www\.google\.com\/maps\/dir\/\?api=1/.test(href), 'odnosnik Google ma poprawny format');
-  ok(decodeURIComponent(href).includes('Starostwo'), 'nawigacja prowadzi do urzedu');
-  ok(decodeURIComponent(href).includes('Urząd Gminy Kobierzyce'), 'gmina prowadzi do urzedu gminy');
+  ok(href === null, 'nawigacja zablokowana przed wyznaczeniem kolejnosci');
 
   /* ---------- tryby trasy ---------- */
   console.log('\nTryby trasy');
@@ -270,8 +268,8 @@ function leafletStub(win) {
   ok(!doc.querySelector('#stops .stop.edit'), 'po znalezieniu adresu edycja sie zamyka');
   ok(doc.querySelector('#stops .stop-name').textContent.includes('Rynek Główny'),
      'nazwa przystanku zmienia sie na nowy adres');
-  ok(decodeURIComponent(doc.getElementById('btnGo').getAttribute('href')).includes('Rynek Główny 1'),
-     'nowy adres trafia do nawigacji');
+  ok(doc.getElementById('btnGo').getAttribute('href') === null,
+     'zmiana adresu blokuje nawigacje do ponownego wyznaczenia');
 
   doc.querySelector('#stops [data-edit]').onclick();
   doc.querySelector('#stops [data-adres]').value = 'nieistniejacy adres xyz';
@@ -354,6 +352,8 @@ function leafletStub(win) {
     .forEach(kod => { szukaj(kod); dodajKod(kod); });
   const ile = +doc.getElementById('cntStops').textContent;
   ok(ile === 12, 'dodano 12 przystankow po kodzie TERYT (' + ile + ')');
+  doc.getElementById('btnOpt').onclick();
+  await new Promise(r => setTimeout(r, 60));
   const sg = doc.querySelectorAll('#segs .sg');
   ok(sg.length >= 2, 'trasa podzielona na ' + sg.length + ' etapow');
   const linki = Array.from(doc.querySelectorAll('#segs a')).map(a => a.getAttribute('href'));
@@ -390,7 +390,7 @@ function leafletStub(win) {
   doc.querySelector('#savedList [data-load]').onclick();
   ok(+doc.getElementById('cntStops').textContent === zapisanych, 'wczytana trasa ma tyle samo przystankow');
   ok(doc.querySelector('.tab.on').getAttribute('data-page') === 'pgRoute', 'wczytanie przenosi na zakladke Trasa');
-  ok(doc.getElementById('btnGo').getAttribute('href'), 'po wczytaniu odnosnik Google jest aktualny');
+  ok(!doc.getElementById('btnGo').getAttribute('href'), 'wczytana trasa wymaga wyznaczenia kolejnosci');
 
   /* ---------- telefon i dostepnosc ---------- */
   console.log('\nTelefon i dostepnosc');

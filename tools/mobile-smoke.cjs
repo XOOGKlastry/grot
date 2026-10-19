@@ -13,7 +13,7 @@ const assert = require('node:assert/strict');
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'horizontal overflow');
     await page.locator('#installBtn').click();
     assert(await page.locator('#installHelp').isVisible());
-    await page.locator('#installHelp button').click();
+    await page.locator('#installHelp form button').click();
     if (width < 880) {
       if (!(await page.locator('#panel').evaluate(el => el.classList.contains('min')))) await page.locator('#handle').click();
       await page.locator('#filterBtn').click();
